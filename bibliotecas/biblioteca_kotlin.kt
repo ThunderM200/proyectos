@@ -1,6 +1,5 @@
-import java.lang.Exception
+import java.util.Scanner
 
-// Representa la información de cada obra
 data class Libro(
     val nombre: String,
     val autor: String,
@@ -8,54 +7,51 @@ data class Libro(
     var disponible: Boolean = true
 )
 
-// Representa al usuario.
-// libroPrestado es un tipo "Int?" (nullable) para emular el "Option<usize>" de Rust.
 data class Estudiante(
     val nombre: String,
-    var libroPrestado: Int? = null
+    var libroPrestadoIndice: Int? = null
 )
 
-// Almacena la colección de libros y sus operaciones
 class Biblioteca {
-    private val libros = mutableListOf<Libro>()
+    val libros = mutableListOf<Libro>()
 
-    // Registra un nuevo libro en el sistema
     fun crearLibro(nombre: String, autor: String, publicacion: String) {
         libros.add(Libro(nombre, autor, publicacion))
     }
 
-    // Gestiona el préstamo del libro solicitado
     fun pedirLibro(nombre: String, estudiante: Estudiante): Result<Unit> {
-        if (estudiante.libroPrestado != null) {
+        if (estudiante.libroPrestadoIndice != null) {
             return Result.failure(Exception("--- El estudiante ya tiene un libro prestado."))
         }
 
-        for ((i, libro) in libros.withIndex()) {
-            if (libro.nombre == nombre) {
-                if (!libro.disponible) {
-                    return Result.failure(Exception("--- Ese libro ya está prestado."))
-                }
+        val indice = libros.indexOfFirst { it.nombre == nombre }
 
-                libro.disponible = false
-                estudiante.libroPrestado = i
-                return Result.success(Unit)
-            }
+        if (indice == -1) {
+            return Result.failure(Exception("--- Libro no encontrado."))
         }
 
-        return Result.failure(Exception("--- Libro no encontrado."))
-    }
+        val libro = libros[indice]
 
-    // Devuelve el libro que el estudiante tiene actualmente asignado
-    fun devolverLibro(estudiante: Estudiante): Result<Unit> {
-        val indice = estudiante.libroPrestado
-            ?: return Result.failure(Exception("--- El estudiante no tiene libros prestados."))
+        if (!libro.disponible) {
+            return Result.failure(Exception("--- Ese libro ya está prestado."))
+        }
 
-        libros[indice].disponible = true
-        estudiante.libroPrestado = null
+        libro.disponible = false
+        estudiante.libroPrestadoIndice = indice
+
         return Result.success(Unit)
     }
 
-    // Muestra por consola el inventario actual
+    fun devolverLibro(estudiante: Estudiante): Result<Unit> {
+        val indice = estudiante.libroPrestadoIndice
+            ?: return Result.failure(Exception("--- El estudiante no tiene libros prestados."))
+
+        libros[indice].disponible = true
+        estudiante.libroPrestadoIndice = null
+
+        return Result.success(Unit)
+    }
+
     fun mostrarLibros() {
         println("\n=== Biblioteca ===")
         for (libro in libros) {
@@ -68,8 +64,8 @@ class Biblioteca {
 
 fun main() {
     val biblioteca = Biblioteca()
+    val scanner = Scanner(System.`in`)
 
-    // Carga de libros iniciales
     biblioteca.crearLibro("Rust Programming", "Steve", "2024")
     biblioteca.crearLibro("El Quijote", "Cervantes", "1605")
 
@@ -81,26 +77,24 @@ fun main() {
         println("3. Devolver libro")
         println("4. Salir")
 
-        val opcion = readlnOrNull()?.trim() ?: break
+        val opcion = scanner.nextLine().trim()
 
         when (opcion) {
-            "1" -> {
-                biblioteca.mostrarLibros()
-            }
+            "1" -> biblioteca.mostrarLibros()
 
             "2" -> {
                 println("Nombre del libro:")
-                val nombre = readlnOrNull()?.trim() ?: ""
+                val nombre = scanner.nextLine().trim()
 
                 biblioteca.pedirLibro(nombre, estudiante)
                     .onSuccess { println("--- Libro prestado.\n") }
-                    .onFailure { exception -> println("${exception.message}\n") }
+                    .onFailure { println("${it.message}\n") }
             }
 
             "3" -> {
                 biblioteca.devolverLibro(estudiante)
                     .onSuccess { println("--- Libro devuelto.\n") }
-                    .onFailure { exception -> println("${exception.message}\n") }
+                    .onFailure { println("${it.message}\n") }
             }
 
             "4" -> break
